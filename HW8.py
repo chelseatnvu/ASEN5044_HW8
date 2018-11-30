@@ -48,7 +48,33 @@ for i in range(1,201):
     np.random.seed(i)
     y = np.append(y,(H@x_val[:,i] + multivariate_normal(mean=None,cov=R_a).rvs()).reshape((2,1)),axis=1)
 
+#initialize xhato and Po
+xhat_init=np.array([0,85*np.cos(np.pi/4),0,-85*np.sin(np.pi/4)])
+p_init=900*np.diag([10,2,10,2])
+xks=[]
+twosigmas=[]
+for i in range(201):
+    if i==0:
+        x_k_plus = xhat_init
+        p_k_plus = p_init
+   
+    #time update step
+    x_k_minus = F_a@x_k_plus
+    p_k_min = F_a @ p_k_plus @ F_a.T + Q_a
+    k_k = p_k_min @ H.T @ np.linalg.inv(H @ p_k_min @ H.T + R_a)
+    
+    #measurement update step
+    x_k_plus = x_k_minus + (k_k @ (y[:,i] - H @ x_k_minus))
+    p_k_plus = (np.identity(4) - k_k @ H) @ p_k_min
+    twosigmas.append([2*np.sqrt(p_k_plus[0,0]),2*np.sqrt(p_k_plus[1,1]),2*np.sqrt(p_k_plus[2,2]),2*np.sqrt(p_k_plus[3,3])])
+    xks.append(x_k_plus)
+xks=np.array(xks).T
+twosigmas=np.array(twosigmas)
+
 #Plotting
-fig, ax = plt.subplots(1,1)
-ax.plot(y[0,0:41],y[1,0:41])
+fig, ax = plt.subplots(1,3)
+ax.plot(y[0,0:41],y[1,0:41],label="y")
+ax.plot(xks[0,0:41],xks[2,0:41],label="x")
+ax.plot()
+ax.legend()
 plt.show()
