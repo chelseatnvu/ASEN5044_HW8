@@ -72,12 +72,12 @@ xks=np.array(xks).T
 twosigmas=np.array(twosigmas).T
 
 #Plotting
-'''fig, ax = plt.subplots(1,3)
+fig, ax = plt.subplots(1,3)
 ax.plot(y[0,0:41],y[1,0:41],label="y")
 ax.plot(xks[0,0:41],xks[2,0:41],label="x")
 ax.plot()
 ax.legend()
-plt.show()'''
+plt.show()
 
 #calculate estimated state error
 est_st_err = np.abs(x_val - xks)
