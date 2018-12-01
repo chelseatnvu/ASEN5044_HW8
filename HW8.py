@@ -69,7 +69,7 @@ for i in range(201):
     twosigmas.append([2*np.sqrt(p_k_plus[0,0]),2*np.sqrt(p_k_plus[1,1]),2*np.sqrt(p_k_plus[2,2]),2*np.sqrt(p_k_plus[3,3])])
     xks.append(x_k_plus)
 xks=np.array(xks).T
-twosigmas=np.array(twosigmas)
+twosigmas=np.array(twosigmas).T
 
 #Plotting
 fig, ax = plt.subplots(1,3)
@@ -77,4 +77,12 @@ ax.plot(y[0,0:41],y[1,0:41],label="y")
 ax.plot(xks[0,0:41],xks[2,0:41],label="x")
 ax.plot()
 ax.legend()
+plt.show()
+
+#plot state one with sigma bounds
+ksplt=np.linspace(0,200,201)
+plt.scatter(ksplt,xks[0,:])    #does time start at k=0 or k=1?
+plt.scatter(ksplt,xks[0,:]+twosigmas[0,:],s=1)
+plt.scatter(ksplt,xks[0,:]+twosigmas[0,:],s=1)
+plt.scatter(ksplt,xks[0,:]-twosigmas[0,:],s=1)
 plt.show()
