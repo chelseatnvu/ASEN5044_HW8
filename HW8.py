@@ -72,17 +72,54 @@ xks=np.array(xks).T
 twosigmas=np.array(twosigmas).T
 
 #Plotting
-fig, ax = plt.subplots(1,3)
+'''fig, ax = plt.subplots(1,3)
 ax.plot(y[0,0:41],y[1,0:41],label="y")
 ax.plot(xks[0,0:41],xks[2,0:41],label="x")
 ax.plot()
 ax.legend()
+plt.show()'''
+
+#calculate estimated state error
+est_st_err = np.abs(x_val - xks)
+
+#plot estimated state error
+ksplt=np.linspace(0,200,201)
+plt.subplot(221)
+plt.scatter(ksplt,est_st_err[0,:],s=2)
+plt.ylabel('East Error (m)')
+plt.xlabel('Time (s)')
+plt.subplot(222)
+plt.scatter(ksplt,est_st_err[1,:],s=2)
+plt.ylabel('East Vel. Error (m/s)')
+plt.xlabel('Time (s)')
+plt.subplot(223)
+plt.scatter(ksplt,est_st_err[2,:],s=2)
+plt.ylabel('North Error (m)')
+plt.xlabel('Time (s)')
+plt.subplot(224)
+plt.scatter(ksplt,est_st_err[3,:],s=2)
+plt.ylabel('North Vel. Error (m/s)')
+plt.xlabel('Time (s)')
+plt.tight_layout()
 plt.show()
 
-#plot state one with sigma bounds
-ksplt=np.linspace(0,200,201)
-plt.scatter(ksplt,xks[0,:])    #does time start at k=0 or k=1?
-plt.scatter(ksplt,xks[0,:]+twosigmas[0,:],s=1)
-plt.scatter(ksplt,xks[0,:]+twosigmas[0,:],s=1)
-plt.scatter(ksplt,xks[0,:]-twosigmas[0,:],s=1)
+#plot sigma bounds
+plt.suptitle('2 * Sigma Bounds')
+plt.subplot(221)
+plt.scatter(ksplt,twosigmas[0,:],s=1)
+plt.ylabel('East (m^2)')
+plt.xlabel('Time (s)')
+plt.subplot(222)
+plt.scatter(ksplt,twosigmas[1,:],s=1)
+plt.ylabel('East vel. (m/s)^2')
+plt.xlabel('Time (s)')
+plt.subplot(223)
+plt.scatter(ksplt,twosigmas[2,:],s=1)
+plt.ylabel('North (m^2)')
+plt.xlabel('Time (s)')
+plt.subplot(224)
+plt.scatter(ksplt,twosigmas[3,:],s=1)
+plt.ylabel('North vel. (m/s)^2')
+plt.xlabel('Time (s)')
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
