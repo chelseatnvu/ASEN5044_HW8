@@ -123,3 +123,6 @@ plt.ylabel('North vel. (m/s)^2')
 plt.xlabel('Time (s)')
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
+
+#part c
+
