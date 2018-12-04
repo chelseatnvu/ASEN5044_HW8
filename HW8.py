@@ -233,21 +233,18 @@ for i in range(201):
     xksd.append(x_k_plus)
 xksd=np.array(xksd).T
 twosigmasd=np.array(twosigmasd).T
-
-true_state = np.concatenate((x_val_A,x_val_B),axis=0)
-est_st_errp = np.abs(true_state - xksd)
-ksplt=np.linspace(0,200,201)
+est_st_errd = np.abs(true_state - xksd)
 
 #Plotting
 fig4, ax4 = plt.subplots(2,2)
 for i in (0,1):
     for j in (0,1):
         n = 2*1+j 
-        ax4[i,j].scatter(ksplt,est_st_errp[n,:],s=2,label='Aircraft A')
+        ax4[i,j].scatter(ksplt,est_st_errd[n,:],s=2,label='Aircraft A')
         if j%2 == 0:
-            ax4[i,j].scatter(ksplt,est_st_errp[4+n,:],s=2,label='Aircraft B')
+            ax4[i,j].scatter(ksplt,est_st_errd[4+n,:],s=2,label='Aircraft B')
         else:
-            ax4[i,j].scatter(ksplt[1:],est_st_errp[4+n,1:],s=2,label='Aircraft B')
+            ax4[i,j].scatter(ksplt[1:],est_st_errd[4+n,1:],s=2,label='Aircraft B')
         ax4[i,j].legend()
         if n%2==0:
             ax4[i,j].set_ylabel('Position Error (m)')
