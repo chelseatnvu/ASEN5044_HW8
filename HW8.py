@@ -219,8 +219,8 @@ for i in range(201):
         p_k_plus = p_init
    
     #time update step
-    x_k_minus = Fp@x_k_plus
-    p_k_min = Fp @ p_k_plus @ Fp.T + Qp
+    x_k_minus = Fd@x_k_plus
+    p_k_min = Fd @ p_k_plus @ Fd.T + Qd
     k_k = p_k_min @ Hd.T @ LA.inv(Hd @ p_k_min @ Hd.T + R_d)
     
     #measurement update step
