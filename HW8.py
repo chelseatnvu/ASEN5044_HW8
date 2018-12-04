@@ -73,22 +73,16 @@ xks=np.array(xks).T
 twosigmas=np.array(twosigmas).T
 
 #Plotting
-fig, ax = plt.subplots(1,3)
+fig, ax = plt.subplots(1,2)
 
-ax[0].plot(y[0,0:41],y[1,0:41],'.',label="inputs")
-ax[0].plot(xks[0,0:41],xks[2,0:41],label="kalman filter")
-ax[0].set_xlabel('East')
-ax[0].set_ylabel('North')
-ax[0].set_title('Position Plot')
-ax[0].legend()
-for i in (1,2):
+for i in (0,1):
     ax[i].plot(np.arange(1,42),y[i-1,0:41],'.',label='Position Input')
     ax[i].plot(np.arange(1,42),xks[2*i-2,0:41],label='Position (Kalman Filter)')
     ax[i].set_xlabel('Time (s)')
     ax[i].set_ylabel('Position (m)')
     ax[i].legend()
-ax[1].set_title('Easterly Position vs. Time')
-ax[2].set_title('Northerly Position vs. Time')
+ax[0].set_title('Easterly Position vs. Time')
+ax[1].set_title('Northerly Position vs. Time')
 plt.show()
 
 #calculate estimated state error
@@ -202,11 +196,12 @@ for i in (0,1):
             ax3[i,j].set_ylabel('Position Error (m)')
             ax3[i,j].set_xlabel('Time (s)')
         else:
-            ax3[i,j].set_ylabel('Velocity Error (m)')
+            ax3[i,j].set_ylabel('Velocity Error (m/s)')
             ax3[i,j].set_xlabel('Time (s)')
         ax3[0,j].set_title('East Error')
         ax3[1,j].set_title('North Error')
 plt.suptitle('Aircraft Estimation Error')
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
 
 # Part C ii --------------------------------------------------------------------------------------
@@ -258,9 +253,10 @@ for i in (0,1):
             ax4[i,j].set_ylabel('Position Error (m)')
             ax4[i,j].set_xlabel('Time (s)')
         else:
-            ax4[i,j].set_ylabel('Velocity Error (m)')
+            ax4[i,j].set_ylabel('Velocity Error (m/s)')
             ax4[i,j].set_xlabel('Time (s)')
         ax4[0,j].set_title('East Error')
         ax4[1,j].set_title('North Error')
 plt.suptitle('Aircraft Estimation Error - Only Transponder')
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.show()
