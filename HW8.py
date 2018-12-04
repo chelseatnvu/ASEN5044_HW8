@@ -73,11 +73,22 @@ xks=np.array(xks).T
 twosigmas=np.array(twosigmas).T
 
 #Plotting
-'''fig, ax = plt.subplots(1,3)
-ax.plot(y[0,0:41],y[1,0:41],label="y")
-ax.plot(xks[0,0:41],xks[2,0:41],label="x")
-ax.plot()
-ax.legend()
+fig, ax = plt.subplots(1,3)
+
+ax[0].plot(y[0,0:41],y[1,0:41],'.',label="inputs")
+ax[0].plot(xks[0,0:41],xks[2,0:41],label="kalman filter")
+ax[0].set_xlabel('East')
+ax[0].set_ylabel('North')
+ax[0].set_title('Position Plot')
+ax[0].legend()
+for i in (1,2):
+    ax[i].plot(np.arange(1,42),y[i-1,0:41],'.',label='Position Input')
+    ax[i].plot(np.arange(1,42),xks[2*i-2,0:41],label='Position (Kalman Filter)')
+    ax[i].set_xlabel('Time (s)')
+    ax[i].set_ylabel('Position (m)')
+    ax[i].legend()
+ax[1].set_title('Easterly Position vs. Time')
+ax[2].set_title('Northerly Position vs. Time')
 plt.show()
 
 #calculate estimated state error
@@ -85,45 +96,23 @@ est_st_err = np.abs(x_val - xks)
 
 #plot estimated state error
 ksplt=np.linspace(0,200,201)
-plt.subplot(221)
-plt.scatter(ksplt,est_st_err[0,:],s=2)
-plt.ylabel('East Error (m)')
-plt.xlabel('Time (s)')
-plt.subplot(222)
-plt.scatter(ksplt,est_st_err[1,:],s=2)
-plt.ylabel('East Vel. Error (m/s)')
-plt.xlabel('Time (s)')
-plt.subplot(223)
-plt.scatter(ksplt,est_st_err[2,:],s=2)
-plt.ylabel('North Error (m)')
-plt.xlabel('Time (s)')
-plt.subplot(224)
-plt.scatter(ksplt,est_st_err[3,:],s=2)
-plt.ylabel('North Vel. Error (m/s)')
-plt.xlabel('Time (s)')
-plt.tight_layout()
+fig2,ax2 = plt.subplots(2,2)
+for i in range(len(ax2)):
+    for j in range(len(ax2[i])):
+        ax2[i,j].scatter(ksplt,est_st_err[2*i+j,:],s=2,label='Error')
+        ax2[i,j].plot(ksplt,twosigmas[2*i+j,:],'g',label='Est Error Bounds')
+        ax2[i,j].set_xlabel('Time (s)')
+        ax2[i,j].legend()
+        if (2*1+j)%2 == 0:
+            ax2[i,j].set_ylabel('Position Error (m)')
+        else:
+            ax2[i,j].set_ylabel('Velocity Error (m/s)')
+ax2[0,0].set_title('East Position')
+ax2[0,1].set_title('East Velocity')
+ax2[1,0].set_title('North Position')
+ax2[1,1].set_title('North Velocity')
+plt.tight_layout(rect=[0.1,0,0.9,1])
 plt.show()
-
-#plot sigma bounds
-plt.suptitle('2 * Sigma Bounds')
-plt.subplot(221)
-plt.scatter(ksplt,twosigmas[0,:],s=1)
-plt.ylabel('East (m^2)')
-plt.xlabel('Time (s)')
-plt.subplot(222)
-plt.scatter(ksplt,twosigmas[1,:],s=1)
-plt.ylabel('East vel. (m/s)^2')
-plt.xlabel('Time (s)')
-plt.subplot(223)
-plt.scatter(ksplt,twosigmas[2,:],s=1)
-plt.ylabel('North (m^2)')
-plt.xlabel('Time (s)')
-plt.subplot(224)
-plt.scatter(ksplt,twosigmas[3,:],s=1)
-plt.ylabel('North vel. (m/s)^2')
-plt.xlabel('Time (s)')
-plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-plt.show()'''
 
 #part c
 #read in A and B data
