@@ -208,3 +208,59 @@ for i in (0,1):
         ax3[1,j].set_title('North Error')
 plt.suptitle('Aircraft Estimation Error')
 plt.show()
+
+# Part C ii --------------------------------------------------------------------------------------
+Hd = Hp = np.array([   [1, 0, 0, 0, -1, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0, -1, 0]   ])
+Fd = Fp
+Qd = Qp
+
+#initialize xhato and Po
+xksd=[]
+twosigmasd=[]
+for i in range(201):
+    if i==0:
+        x_k_plus = xhat_init
+        p_k_plus = p_init
+   
+    #time update step
+    x_k_minus = Fp@x_k_plus
+    p_k_min = Fp @ p_k_plus @ Fp.T + Qp
+    k_k = p_k_min @ Hd.T @ LA.inv(Hd @ p_k_min @ Hd.T + R_d)
+    
+    #measurement update step
+    x_k_plus = x_k_minus + (k_k @ (y_D[:,i] - Hp @ x_k_minus))
+    p_k_plus = (np.identity(8) - k_k @ Hd) @ p_k_min
+    twosigmasd.append([2*np.sqrt(p_k_plus[0,0]),2*np.sqrt(p_k_plus[1,1]),\
+                      2*np.sqrt(p_k_plus[2,2]),2*np.sqrt(p_k_plus[3,3]),\
+                      2*np.sqrt(p_k_plus[4,4]),2*np.sqrt(p_k_plus[5,5]),\
+                      2*np.sqrt(p_k_plus[6,6]),2*np.sqrt(p_k_plus[7,7])])
+    xksd.append(x_k_plus)
+xksd=np.array(xksd).T
+twosigmasd=np.array(twosigmasd).T
+
+true_state = np.concatenate((x_val_A,x_val_B),axis=0)
+est_st_errp = np.abs(true_state - xksd)
+ksplt=np.linspace(0,200,201)
+
+#Plotting
+fig4, ax4 = plt.subplots(2,2)
+for i in (0,1):
+    for j in (0,1):
+        n = 2*1+j 
+        ax4[i,j].scatter(ksplt,est_st_errp[n,:],s=2,label='Aircraft A')
+        if j%2 == 0:
+            ax4[i,j].scatter(ksplt,est_st_errp[4+n,:],s=2,label='Aircraft B')
+        else:
+            ax4[i,j].scatter(ksplt[1:],est_st_errp[4+n,1:],s=2,label='Aircraft B')
+        ax4[i,j].legend()
+        if n%2==0:
+            ax4[i,j].set_ylabel('Position Error (m)')
+            ax4[i,j].set_xlabel('Time (s)')
+        else:
+            ax4[i,j].set_ylabel('Velocity Error (m)')
+            ax4[i,j].set_xlabel('Time (s)')
+        ax4[0,j].set_title('East Error')
+        ax4[1,j].set_title('North Error')
+plt.suptitle('Aircraft Estimation Error - Only Transponder')
+plt.show()
