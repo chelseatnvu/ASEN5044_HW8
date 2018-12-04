@@ -30,9 +30,9 @@ def statestation(i,t):
 #CT state matrices
 def genA(X,Y):
     A = np.array([[0, 1, 0, 0],\
-                  [(-mu(X+Y)**1.5 - 1.5*mu*X*(X+Y)**.5)/((X+Y)**3), 0, 1.5*mu*X*(X+Y)**-2.5, 0],\
+                  [(-mu(X+Y)**1.5 + 1.5*mu*X*(X+Y)**.5)/((X+Y)**3), 0, 1.5*mu*X*(X+Y)**-2.5, 0],\
                     [0, 0, 0, 1],\
-                    [1.5*mu*Y*(X+Y)**(-2.5), 0, (-mu*(X+Y)**1.5-mu*Y*(X+Y)**.5)/((X+Y)**3)]])
+                    [1.5*mu*Y*(X+Y)**(-2.5), 0, (-mu*(X+Y)**1.5+ 1.5* mu*Y*(X+Y)**.5)/((X+Y)**3)]])
     return A
 A = genA(X0,Y0)
 B = np.array([[0, 0],\
