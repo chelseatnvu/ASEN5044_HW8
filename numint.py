@@ -41,15 +41,9 @@ print('period = ',T,' s')
 a=solvetraj(ro[0],ro[1],vo[0],vo[1],T+10.)
 
 #plot orbit
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-z = a[0][:,2]
 x = a[0][:,0]
 y = a[0][:,1]
-ax.plot(x, y, z, label='orbit')
+plt.plot(x, y)
 plt.xlabel('x (km)')
 plt.ylabel('y (km)')
-# plt.zlabel('z')
-ax.legend()
-
 plt.show()
