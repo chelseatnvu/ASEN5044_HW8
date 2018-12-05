@@ -5,7 +5,9 @@ Created on Tue Dec  4 10:52:39 2018
 @author: Chelsea
 """
 import numpy as np
+import scipy
 from scipy import linalg as LA
+from matplotlib import pyplot as plt
 
 #part b
 #nominal conditions
@@ -31,10 +33,10 @@ def statestation(i,t):
 
 #CT state matrices
 def genA(X,Y):
-    A = np.array([[0., 1., 0., 0.],\
-         [(-mu*(X+Y)**1.5 + 1.5*mu*X*(X+Y)**.5)/((X+Y)**3), 0., 1.5*mu*X*(X+Y)**-2.5, 0.],\
-         [0., 0., 0., 1.],\
-         [1.5*mu*Y*(X+Y)**(-2.5), 0., (-mu*(X+Y)**1.5+ 1.5* mu*Y*(X+Y)**.5)/((X+Y)**3),0.]])
+    A = np.array([[0.,                                                  1., 0.,                                                0.],
+                  [(-mu*(X+Y)**1.5 + 1.5*mu*X*(X+Y)**.5)/((X+Y)**3),    0., 1.5*mu*X*(X+Y)**-2.5,                              0.],
+                  [0.,                                                  0., 0.,                                                1.],
+                  [1.5*mu*Y*(X+Y)**(-2.5),                              0., (-mu*(X+Y)**1.5+ 1.5*mu*Y*(X+Y)**.5)/((X+Y)**3),   0.]])
     return A
 A = genA(X0,Y0)
 B = np.array([[0, 0],\
@@ -72,27 +74,50 @@ gamma = np.array([[0, 0],\
 w = np.array([[1.,1.],[1.,1.]]) #just a guess?
 
 dt = 10. #s
-Z = np.append(-A,gamma@w@gamma.T,axis=1)
-Z = dt*np.append(Z,np.append(np.zeros((4,4)),A.T,axis=1),axis=0)
-expZ = LA.expm(Z)
 
-F = expZ[4:,4:].T
-Q = F @ expZ[0:4,4:]
 
-#find G
-A_hat = np.append(A,B,axis=1)
-A_hat = np.append(A_hat,np.zeros((2,6)),axis=0)
-exp_A_hat = LA.expm(A_hat)
-G = exp_A_hat[0:4,4:]
+#find F,G,Omega
+F = np.eye(4) + dt*A
+G = dt*B
+Omega = dt*gamma
 
 #define H and M. they are the same as C and D evaluated at nominal respectively
 H = C
 M = D
 
+#Solver functions
+def eom(rv,t):
+	x,xvel,y,yvel=rv
+	r=np.sqrt(x**2+y**2)
+	xdot=xvel
+	vxdot=-mu*x/(r**3)
+	ydot=yvel
+	vydot=-mu*y/(r**3)
+	drvdt=[xdot,vxdot,ydot,vydot]
+	return drvdt
+
+def solvetraj(x,y,xvel,yvel,TOF):
+	rv0=[x,y,xvel,yvel]	#initial conditions for odeint
+	t=np.arange(0.,TOF,dt)	#(start, stop, stepsize)
+	sol=scipy.integrate.odeint(eom,rv0,t)#,full_output=1)
+	return [sol,t]
+
+#Initial Conditions
+ro=np.array([6678.,0.])    #km
+ro_mag = np.linalg.norm(ro)
+vo=np.array([0.,ro_mag*np.sqrt(mu/ro_mag**3)])    #km/s
+
+#calculate period of orbit
+n = np.sqrt(mu/ro_mag**3)
+T = 2*np.pi/n
+
+x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
+
+delta_x = np.array([0.1,0.001,0.1,0.001])
 #propagate forward assuming no inputs (so assume G = 0)
-xs_DT = [[X0,Y0,Xd0,Yd0]]
-for i in range(5431):
+xs_DT = [np.array(delta_x)]
+for i in range(545):
+    F = np.eye(4) + dt*genA(x_star[i,0],x_star[i,2])
     xs_DT.append(F @ xs_DT[i])
 xs_DT[0]=np.array([X0,Y0,Xd0,Yd0])
 xs_DT=np.array(xs_DT)
-    
