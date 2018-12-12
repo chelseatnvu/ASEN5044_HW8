@@ -39,11 +39,6 @@ def genA(X,Y):
                   [3*mu*X**2/r**5 - mu/r**3,      0., 3*mu*X*Y/r**5,              0.],
                   [0.,                            0., 0.,                         1.],
                   [3*mu*X*Y/r**5,                 0., 3*mu*Y**2/r**5 - mu/r**3,   0.]])
-#    grav = -mu/LA.norm(np.array([X,Y]))**3
-#    A = np.array([[ 0,    1,    0,    0     ],
-#                  [ grav, 0,    0,    0     ],
-#                  [ 0,    0,    0,    1     ],
-#                  [ 0,    0,    grav, 0     ]])
     return A
 A = genA(X0,Y0)
 B = np.array([[0, 0],\
@@ -135,21 +130,46 @@ x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
 delta_x = np.array([0,0.075,0.,-.021])
 #propagate forward assuming no inputs (so assume G = 0)
 xs_DT = [np.array(delta_x)]
-for i in range(TOF/10):
+for i in range(int(T/10)):
     F = np.eye(4) + dt*genA(x_star[i,0],x_star[i,2])
     xs_DT.append(F @ xs_DT[i])
 xs_DT=x_star+np.array(xs_DT)
 
 x_star_delta, time = solvetraj(ro[0]+delta_x[0],vo[0]+delta_x[1],ro[1]+delta_x[2],vo[1]+delta_x[3],T+10.)
 
+fig, ax = plt.subplots(1,1)
 x = xs_DT[:,0]
 x2 = x_star_delta[:,0]
 y = xs_DT[:,2]
 y2 = x_star_delta[:,2]
-plt.plot(x, y,label='Linearized DT Solution')
-plt.plot(x2,y2,label='ODE Solver Solution')
-plt.title('Comparison to ODE Solver Solution')
-plt.legend()
-plt.xlabel('x (km)')
-plt.ylabel('y (km)')
+ax.plot(x, y,label='Linearized DT Solution')
+ax.plot(x2,y2,label='ODE Solver Solution')
+ax.set_title('Comparison to ODE Solver Solution')
+ax.legend()
+ax.set_xlabel('x (km)')
+ax.set_ylabel('y (km)')
+plt.show()
+
+fig2, ax2 = plt.subplots(4,1)
+ts=np.arange(0,int(T/10)+1,1)
+ax2[0].plot(ts,x)
+ax2[0].set_ylabel('x')
+ax2[1].plot(ts,xs_DT[:,1])
+ax2[1].set_ylabel('xdot')
+ax2[2].plot(ts,y)
+ax2[2].set_ylabel('y')
+ax2[3].plot(ts,xs_DT[:,3])
+ax2[3].set_ylabel('ydot')
+#for i in 0,1,2,3:
+#    ax2[i].set_xlabel('time')
+plt.suptitle('Linearized State Approximations vs. Time')
+plt.show()
+
+fig3, ax3 = plt.subplots(4,1)
+ylabels = ['delta X', 'delta X dot', 'delta Y', 'delta Y dot']
+for i in range(4):
+    ax3[i].plot(np.arange(T/10+1),np.array(xs_DT-x_star)[:,i])
+#    ax3[i].set_xlabel('time')
+    ax3[i].set_ylabel(ylabels[i])
+plt.suptitle('Linearized Perturbations v. Time')
 plt.show()
