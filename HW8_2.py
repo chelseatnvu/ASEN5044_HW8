@@ -36,9 +36,14 @@ def statestation(i,t):
 def genA(X,Y):
     r = np.sqrt(X**2+Y**2)
     A = np.array([[0.,                            1., 0.,                         0.],
-                  [3*mu*X**2/(X**2+Y**2)**2.5,    0., 3*mu*X*Y/(X**2+Y**2)**2.5,  0.],
+                  [3*mu*X**2/r**5 - mu/r**3,      0., 3*mu*X*Y/r**5,              0.],
                   [0.,                            0., 0.,                         1.],
-                  [3*mu*X*Y/(X**2+Y**2)**2.5,     0., 3*mu*Y**2/(X**2+Y**2)**2.5, 0.]])
+                  [3*mu*X*Y/r**5,                 0., 3*mu*Y**2/r**5 - mu/r**3,   0.]])
+#    grav = -mu/LA.norm(np.array([X,Y]))**3
+#    A = np.array([[ 0,    1,    0,    0     ],
+#                  [ grav, 0,    0,    0     ],
+#                  [ 0,    0,    0,    1     ],
+#                  [ 0,    0,    grav, 0     ]])
     return A
 A = genA(X0,Y0)
 B = np.array([[0, 0],\
@@ -115,7 +120,7 @@ vo=np.array([0.,ro_mag*np.sqrt(mu/ro_mag**3)])    #km/s
 
 #calculate period of orbit
 n = np.sqrt(mu/ro_mag**3)
-T = 2*np.pi/n
+T = 14000
 
 x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
 
@@ -130,7 +135,7 @@ x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
 delta_x = np.array([0,0.075,0.,-.021])
 #propagate forward assuming no inputs (so assume G = 0)
 xs_DT = [np.array(delta_x)]
-for i in range(544):
+for i in range(TOF/10):
     F = np.eye(4) + dt*genA(x_star[i,0],x_star[i,2])
     xs_DT.append(F @ xs_DT[i])
 xs_DT=x_star+np.array(xs_DT)
