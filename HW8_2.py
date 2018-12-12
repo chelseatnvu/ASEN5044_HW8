@@ -6,6 +6,7 @@ Created on Tue Dec  4 10:52:39 2018
 """
 import numpy as np
 import scipy
+from scipy.integrate import odeint
 from scipy import linalg as LA
 from matplotlib import pyplot as plt
 
@@ -33,10 +34,11 @@ def statestation(i,t):
 
 #CT state matrices
 def genA(X,Y):
-    A = np.array([[0.,                                                  1., 0.,                                                0.],
-                  [(-mu*(X+Y)**1.5 + 1.5*mu*X*(X+Y)**.5)/((X+Y)**3),    0., 1.5*mu*X*(X+Y)**-2.5,                              0.],
-                  [0.,                                                  0., 0.,                                                1.],
-                  [1.5*mu*Y*(X+Y)**(-2.5),                              0., (-mu*(X+Y)**1.5+ 1.5*mu*Y*(X+Y)**.5)/((X+Y)**3),   0.]])
+    r = np.sqrt(X**2+Y**2)
+    A = np.array([[0.,                            1., 0.,                         0.],
+                  [3*mu*X**2/(X**2+Y**2)**2.5,    0., 3*mu*X*Y/(X**2+Y**2)**2.5,  0.],
+                  [0.,                            0., 0.,                         1.],
+                  [3*mu*X*Y/(X**2+Y**2)**2.5,     0., 3*mu*Y**2/(X**2+Y**2)**2.5, 0.]])
     return A
 A = genA(X0,Y0)
 B = np.array([[0, 0],\
@@ -94,12 +96,12 @@ def eom(rv,t):
 	ydot=yvel
 	vydot=-mu*y/(r**3)
 	drvdt=[xdot,vxdot,ydot,vydot]
-	return drvdt
+	return [rv[1],-mu*x/(r**3),rv[3],-mu*y/r**3]
 
 def solvetraj(x,y,xvel,yvel,TOF):
-	rv0=[x,y,xvel,yvel]	#initial conditions for odeint
+	rv0=[x,xvel,y,yvel]	#initial conditions for odeint
 	t=np.arange(0.,TOF,dt)	#(start, stop, stepsize)
-	sol=scipy.integrate.odeint(eom,rv0,t)#,full_output=1)
+	sol= odeint(eom,rv0,t)#,full_output=1)
 	return [sol,t]
 
 #Initial Conditions
@@ -113,11 +115,32 @@ T = 2*np.pi/n
 
 x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
 
-delta_x = np.array([0.1,0.001,0.1,0.001])
+#x = x_star[:,0]
+#y = x_star[:,2]
+#plt.plot(x, y)
+#plt.xlabel('x (km)')
+#plt.ylabel('y (km)')
+#plt.show()
+
+#delta_x = np.array([6678,0,0,ro_mag*np.sqrt(mu/ro_mag**3)])+np.array([0.01,0.001,0.1,0.001])
+delta_x = np.array([.1,0.001,0.1,0.001])
 #propagate forward assuming no inputs (so assume G = 0)
 xs_DT = [np.array(delta_x)]
-for i in range(545):
+for i in range(544):
     F = np.eye(4) + dt*genA(x_star[i,0],x_star[i,2])
     xs_DT.append(F @ xs_DT[i])
-xs_DT[0]=np.array([X0,Y0,Xd0,Yd0])
-xs_DT=np.array(xs_DT)
+xs_DT=x_star+np.array(xs_DT)
+
+x_star_delta, time = solvetraj(ro[0]+delta_x[0],vo[0]+delta_x[1],ro[1]+delta_x[2],vo[1]+delta_x[3],T+10.)
+
+x = xs_DT[:,0]
+x2 = x_star_delta[:,0]
+y = xs_DT[:,2]
+y2 = x_star_delta[:,2]
+plt.plot(x, y,label='Linearized DT Solution')
+plt.plot(x2,y2,label='ODE Solver Solution')
+plt.title('Comparison to ODE Solver Solution')
+plt.legend()
+plt.xlabel('x (km)')
+plt.ylabel('y (km)')
+plt.show()
