@@ -55,19 +55,23 @@ def genCi(X,Y,Xd,Yd,Xs,Ys,Xsd,Ysd):
                    (Y-Ys)/rho],\
                     [-(Y-Ys)/rho**2, 0, (X-Xs)/rho**2, 0]])
     return C
-C = []
-for i in range(12):
-    t = 0   #set t = 0 because nominal conditions are at t = 0.
-    Xs,Ys = statestation(i+1,t)
-    #only generate C if elevation is 0 or higher
-    #calculate elevation
-    el = np.arctan2((Y0-Ys),(X0-Xs))
-    if el >=0:
+
+def genCstack(X0,Y0,Xd0,Yd0):
+    C = []
+    for i in range(12):
+        t = 0   #set t = 0 because nominal conditions are at t = 0.
+        Xs,Ys = statestation(i+1,t)
+        #only generate C if elevation is 0 or higher
+        #calculate elevation
+        el = np.arctan2((Y0-Ys),(X0-Xs))
         thet = np.arctan2(Ys,Xs)
-        Xsd = we * np.cos(thet)
-        Ysd = we * np.sin(thet)
-        C.append(genCi(X0,Y0,Xd0,Yd0,Xs,Ys,Xsd,Ysd))
-C = np.concatenate(C, axis = 0)
+        if el>=(-np.pi/2+thet) and el<(np.pi/2+thet):
+            Xsd = we * np.cos(thet)
+            Ysd = we * np.sin(thet)
+            C.append(genCi(X0,Y0,Xd0,Yd0,Xs,Ys,Xsd,Ysd))
+    C = np.concatenate(C, axis = 0)
+    return C
+C=genCstack(X0,Y0,Xd0,Yd0)
 D = np.zeros((np.shape(C)[0],2))
 gamma = np.array([[0, 0],\
                   [1, 0],\
@@ -123,7 +127,7 @@ x_star, time = solvetraj(ro[0],vo[0],ro[1],vo[1],T+10.)
 #plt.show()
 
 #delta_x = np.array([6678,0,0,ro_mag*np.sqrt(mu/ro_mag**3)])+np.array([0.01,0.001,0.1,0.001])
-delta_x = np.array([.1,0.001,0.1,0.001])
+delta_x = np.array([0,0.075,0.,-.021])
 #propagate forward assuming no inputs (so assume G = 0)
 xs_DT = [np.array(delta_x)]
 for i in range(544):
