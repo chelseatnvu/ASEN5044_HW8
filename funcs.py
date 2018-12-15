@@ -1,9 +1,11 @@
 import numpy as np
+import scipy as sp
 
-def eom(x,t,mu):
+def eom(x,t,mu,noise,step):
     X,Xd,Y,Yd = x
     r = np.sqrt(X**2+Y**2)
-    return [Xd,-mu*X/(r**3),Yd,-mu*Y/(r**3)]
+    dirt = noise[int(t/step),:]
+    return [Xd,-mu*X/(r**3)+dirt[0],Yd,-mu*Y/(r**3)+dirt[1]]
 
 def A(state,mu):
     x,xd,y,yd = state
@@ -26,15 +28,15 @@ def station(i,t):
     
 def Ci(state,station_state,mu):
     x,xd,y,yd = state
-    x_station,xd_station,y_station,yd_station = station_state
-    rho = np.sqrt((x-x_station)**2+(y-y_station)**2)
-    rx = x-x_station
-    ry = y-y_station
-    rxd = xd-xd_station
-    ryd = yd-yd_station
+    xs,xds,ys,yds = station_state
+    rho = np.sqrt((x-xs)**2+(y-ys)**2)
+    rx = x-xs
+    ry = y-ys
+    rxd = xd-xds
+    ryd = yd-yds
     return np.array(
             [[rx/rho,                               0,      ry/rho,                                 0       ],
-             [rxd/rho - rx*(rxd*rx+ry*ryd)/rho**3,  rx/rho, ryd/rho - ry*(ryd*ry+rxd*rx)/rho**3,    ry/rho  ],
+             [(ry*(-rx*ryd+xd*ry-xds*ry))/rho**3,   rx/rho, (rx*(rx*ryd+xds*ry-xd*ry))/rho**3,      ry/rho  ],
              [-ry/rho**2,                           0,      rx/rho**2,                              0       ]])
     
 def C(state,mu,t,pings):
@@ -42,6 +44,30 @@ def C(state,mu,t,pings):
     for i in pings:
         C.append(Ci(state,station(i,t),mu))
     return np.array(C).reshape(int(np.size(C)/4),4)
+
+def H_mat(state,mu,t,pings):
+    y_val = y(state,mu,t,pings)
+    if len(y_val) == 5:
+        epsil = [1e-6,1e-12,1e-6,1e-12]
+        ans = np.empty((3,4))
+        for i in np.arange(0,3):
+            for j in 0,1,2,3:
+                addit = (epsil[i]*np.eye(4)[:,j]).reshape(4,1)
+                state2 = (state+addit).reshape(4,1)
+                ans[i,j] = ( y(state2,mu,t,pings)[i,0] - y(state,mu,t,pings)[i,0] ) / epsil[i]
+        return ans
+    elif len(y_val) == 10:
+        epsil = [1e-6,1e-12,1e-6,1e-12,1e-6,1e-12,1e-6,1e-12]
+        ans = np.empty((6,4))
+        k = 0
+        for i in 0,1,2,5,6,7:
+            for j in 0,1,2,3:
+                addit = (epsil[k]*np.eye(4)[:,j]).reshape(4,1)
+                state2 = (state+addit).reshape(4,1)
+                ans[k,j] = ( y(state2,mu,t,pings)[k,0] - y(state,mu,t,pings)[k,0] ) / epsil[k]
+            k += 1
+        return ans
+    
 
 def y(state,mu,t,pings):
     x_c,xd_c,y_c,yd_c = state
@@ -52,11 +78,49 @@ def y(state,mu,t,pings):
         rho = np.sqrt((x_c-x_st)**2+(y_c-y_st)**2)
         rho_d = ((x_c-x_st)*(xd_c-xd_st) + (y_c-y_st)*(yd_c-yd_st))/rho
         phi = np.arctan2((y_c-y_st),(x_c-x_st))
-        y.append(np.array([[rho,rho_d,phi,i]]).T)
+        y.append(np.array([[rho,rho_d,phi,i,t]]).T)
     return np.array(y).reshape(int(np.size(y)),1)
 
-#state=np.array([-2164.31,-7.2572,6328.43,7.5])
+def measure(state,mu,t):
+    x_c,xd_c,y_c,yd_c = state
+    y = []
+    for i in np.arange(1,13):
+        x_st,xd_st,y_st,yd_st = station(i,t)
+        th = np.arctan2(y_st,x_st)
+        rho = np.sqrt((x_c-x_st)**2+(y_c-y_st)**2)
+        rho_d = ((x_c-x_st)*(xd_c-xd_st) + (y_c-y_st)*(yd_c-yd_st))/rho
+        phi = np.arctan2((y_c-y_st),(x_c-x_st))
+        if -np.pi/2 < phi-th < np.pi/2:
+            y.append(np.array([[rho,rho_d,phi,i]]).T)
+    return np.array(y).reshape(int(np.size(y)),1)
+
+def gen_meas(x0,end,step,mu,dirt,R):
+    x_clean = sp.integrate.odeint(eom,x0,np.arange(0,end+step,step),args=(mu,dirt,step))
+    cov = R
+    noise = np.random.multivariate_normal([0,0,0],cov,size=20000).reshape(20000,3).T
+    noise = np.append(noise,np.zeros((1,20000)),axis=0)
+    y_clean = []
+    y_dirty = []
+    for t in np.arange(0,end+step,step):
+        k = int(t/step)
+        state = x_clean[k,:]
+        clean = measure(state,mu,t)
+        clean = clean.reshape(len(clean),1)
+        y_clean.append(clean)
+        if len(clean) == 4:
+            y_dirty.append(clean+noise[:,k].reshape(4,1))
+        elif len(clean) == 8:
+            second = np.random.multivariate_normal([0,0,0],cov,size=(1)).reshape(1,3).T
+            second = np.append(second,[[0]],axis=0).reshape(4,1)
+            y_dirty.append(clean+np.append(noise[:,k].reshape(4,1),second,axis=0))
+        elif len(clean) == 0:
+            y_dirty.append(np.array([]))
+        else: print('Hold Up')
+    return y_dirty
+
+#state=np.array([7000,0,0,7.5])
 #mu = 3.986004415e5
-#t = 1660
-#testC = C(state,mu,t) @ state.T
-#testy = y(state,mu,t)
+##t = 1660
+##testC = C(state,mu,t) @ state.T
+#x0 = np.array([6678,0,0,6678*np.sqrt(mu/6678**3)])
+#testy = gen_meas(x0,10000,10,mu)
