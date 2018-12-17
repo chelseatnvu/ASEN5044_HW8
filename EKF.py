@@ -8,7 +8,7 @@ from scipy.stats import chi2
 
 #Load instructor-provided values
 locals().update(loadmat('orbitdeterm_finalproj_KFdata'))
-Q = 1*Qtrue
+#Qtrue = np.diag([1e-7,1e-7])
 y_data = []
 for a in ydata[0][1:]:
     if np.size(a) == 8:
@@ -23,21 +23,24 @@ NEES = []
 NIS = []
 NEESbar = []
 NISbar = []
-sampSize = 5
-for runs in range(sampSize):
+sampSize = 40
+for runs in range(sampSize): # -------------------------------------------------------------------
     #Initial Conditions and Solver Arguments
-    x0 = np.array([6678,0,0,6678*np.sqrt(mu/6678**3)])
-    tof = 3000
-    step = 1
+    dist = 6678
+    x0 = np.array([dist,0,0,dist*np.sqrt(mu/dist**3)])
+    tof = 10000
+    step = 10
     time_range = np.arange(0,tof+step,step)
-    dirt = np.random.multivariate_normal([0,0],Qtrue,size=int(tof/step)+2)
-    
-    #My Generated Data
-    Rtrue = 1*np.diag([0.1,1,0.1])
-    y_data = gen_meas(x0,tof,step,mu,dirt,Rtrue)
+    dirt = np.random.multivariate_normal([0,0],Qtrue,size=int(tof/step)+1000)
+    not_dirt = np.zeros((len(dirt),2))
+    pert = np.random.multivariate_normal([0,0,0,0],1*np.diag([0.1,0.0001,0.1,0.001]))
     
     #Calculate the truth value -------------------------------------------------------------------
     x_star = sp.integrate.odeint(eom,x0,time_range,args=(mu,dirt,step))
+    
+    #Measurements --------------------------------------------------------------------------------
+    Rtrue = 1*np.diag([0.1,1,0.1])
+    y_data = gen_meas(x0,tof,step,mu,x_star,Rtrue)
     
     #Extended Kalman Filter ----------------------------------------------------------------------
     #Time-Invariant Linearization Matrices
@@ -56,50 +59,47 @@ for runs in range(sampSize):
     for t in np.arange(0,tof+step,step):
         k = int(t/step)
         if t==0:
-            x_hat_p = x0
-            P_hat_p = 2*np.diag([0.1286,2.958e-6,0.064,2.617e-6])
-            Rkf = 1*Rtrue
+            x_hat_p = x0+pert
+            P_hat_p = .1*np.diag([50,0.002,50,0.002])
+            Rkf = Rtrue*1.1
+            Q = Qtrue*1
         else:
             #Integrate x forward to current time step with odeint
-            x_hat_m = sp.integrate.odeint(eom,x_hat_p.reshape(4,),[t-step,t],args=(mu,dirt,step))[-1,:]
+            x_hat_m = sp.integrate.odeint(eom,x_hat_p.reshape(4,),[t-step,t],args=(mu,not_dirt,step))[-1,:]
             
             #Linearize F to determine covariance
             F = np.eye(4) + step*A(x_hat_p,mu)
             P_hat_m = F @ P_hat_p @ F.T + O @ Q @ O.T
+            P_hat_m = 1 * P_hat_m
             
             #Calculate some y guesses based on which measurements we have
             meas = y_data[k]
             if not meas.size:
                 pings = 0,
                 e = []
-            elif np.size(meas) == 4:
-                meas, pings = meas[:-1],meas[-1]
-                H = C(x_hat_m,mu,t,pings)
-                y_hat_m = y(x_hat_m,mu,t,pings)
-                y_ekf.append(y_hat_m.reshape(5,1))
-                y_hat_m = y_hat_m[:-2]
-                lin_appr = np.append(np.append(H @ x_hat_m,pings),t)
-                y_lin.append(lin_appr)
-                e = meas - y_hat_m
-                e_ekf.append(e)
-            elif np.size(meas) == 8:
-                meas, pings = np.append(meas[0:3],meas[4:-1], axis=0), [*meas[3],*meas[-1]]
-                H = C(x_hat_m,mu,t,pings)
-                y_hat_m = y(x_hat_m,mu,t,pings)
-                y_ekf.append(y_hat_m[:5])
-                y_ekf.append(y_hat_m[5:])
-                y_hat_m = y_hat_m[[0,1,2,5,6,7]]
-                lin_appr = np.append(np.append(H[:3,:] @ x_hat_m,pings[0]),t)
-                y_lin.append(lin_appr)
-                lin_appr = np.append(np.append(H[3:,:] @ x_hat_m,pings[1]),t)
-                y_lin.append(lin_appr)
-                e = meas[0:3] - y_hat_m[0:3]
-                e_ekf.append(e)
-                e = meas[3:] - y_hat_m[5:8]
-                e_ekf.append(e)
-                e = meas - y_hat_m
             else:
-                print('Error')
+                meas_list = np.split(meas,len(meas)/4)
+                meas, pings = [],[]
+                for item in meas_list:
+                    meas.append(item[:-1])
+                    pings.append(item[-1])
+                meas = np.array(meas)
+                meas = meas.reshape(np.size(meas),1)
+                H = C(x_hat_m,mu,t,pings)
+                y_val = y(x_hat_m,mu,t,pings)
+                y_hat_m = []
+                for item in np.split(y_val,len(y_val)/5):
+                    y_ekf.append(item)
+                    y_hat_m.append(item[:-2])
+                i = 0
+                for item in np.split(H,len(y_val)/5,axis=0):
+                    y_lin.append(np.append(np.append(item @ x_hat_m,pings[i]),t))
+                    i += 1
+                y_hat_m = np.array(y_hat_m)
+                y_hat_m =y_hat_m.reshape(np.size(y_hat_m),1)
+                e = meas - y_hat_m
+                for item in np.split(e,len(e)/3):
+                    e_ekf.append(item)
             
             #If measurements exist, perform correction step, otherwise skip it
             if not len(e):
@@ -138,10 +138,10 @@ NEES = np.array(NEES).reshape(k,sampSize)
 NIS = np.array(NIS).reshape(k,sampSize)
 NEES_bar = np.mean(NEES,axis=1)
 NIS_bar = np.mean(NIS,axis=1)
-r1_NEES = chi2.ppf(0.05,4*sampSize)/sampSize
-r2_NEES = chi2.ppf(0.95,4*sampSize)/sampSize
-r1_NIS = chi2.ppf(0.05,3*sampSize)/sampSize
-r2_NIS = chi2.ppf(0.95,3*sampSize)/sampSize
+r1_NEES = chi2.ppf(0.01,4*sampSize)/sampSize
+r2_NEES = chi2.ppf(0.99,4*sampSize)/sampSize
+r1_NIS = chi2.ppf(0.01,3*sampSize)/sampSize
+r2_NIS = chi2.ppf(0.99,3*sampSize)/sampSize
     
 #Plotting ----------------------------------------------------------------------------------------
 only_plot = 6,
@@ -201,9 +201,13 @@ if 6 in only_plot:
     ax6[0].plot(NEES_bar,'.')
     ax6[0].plot(r1_NEES*np.ones(len(NEES_bar)))
     ax6[0].plot(r2_NEES*np.ones(len(NEES_bar)))
+    ax6[0].set_title('NEES')
+    ax6[0].set_ylabel('Chi Squared Statistic')
     ax6[1].plot(NIS_bar,'.')
     ax6[1].plot(r1_NIS*np.ones(len(NIS_bar)))
     ax6[1].plot(r2_NIS*np.ones(len(NIS_bar)))
+    ax6[1].set_title('NIS')
+    ax6[1].set_ylabel('Chi Squared Statistic')
     plt.show()
     
 #Approximate Y Measurements vs Time

@@ -45,28 +45,28 @@ def C(state,mu,t,pings):
         C.append(Ci(state,station(i,t),mu))
     return np.array(C).reshape(int(np.size(C)/4),4)
 
-def H_mat(state,mu,t,pings):
-    y_val = y(state,mu,t,pings)
-    if len(y_val) == 5:
-        epsil = [1e-6,1e-12,1e-6,1e-12]
-        ans = np.empty((3,4))
-        for i in np.arange(0,3):
-            for j in 0,1,2,3:
-                addit = (epsil[i]*np.eye(4)[:,j]).reshape(4,1)
-                state2 = (state+addit).reshape(4,1)
-                ans[i,j] = ( y(state2,mu,t,pings)[i,0] - y(state,mu,t,pings)[i,0] ) / epsil[i]
-        return ans
-    elif len(y_val) == 10:
-        epsil = [1e-6,1e-12,1e-6,1e-12,1e-6,1e-12,1e-6,1e-12]
-        ans = np.empty((6,4))
-        k = 0
-        for i in 0,1,2,5,6,7:
-            for j in 0,1,2,3:
-                addit = (epsil[k]*np.eye(4)[:,j]).reshape(4,1)
-                state2 = (state+addit).reshape(4,1)
-                ans[k,j] = ( y(state2,mu,t,pings)[k,0] - y(state,mu,t,pings)[k,0] ) / epsil[k]
-            k += 1
-        return ans
+#def H_mat(state,mu,t,pings):
+#    y_val = y(state,mu,t,pings)
+#    if len(y_val) == 5:
+#        epsil = [1e-6,1e-12,1e-6,1e-12]
+#        ans = np.empty((3,4))
+#        for i in np.arange(0,3):
+#            for j in 0,1,2,3:
+#                addit = (epsil[i]*np.eye(4)[:,j]).reshape(4,1)
+#                state2 = (state+addit).reshape(4,1)
+#                ans[i,j] = ( y(state2,mu,t,pings)[i,0] - y(state,mu,t,pings)[i,0] ) / epsil[i]
+#        return ans
+#    elif len(y_val) == 10:
+#        epsil = [1e-6,1e-12,1e-6,1e-12,1e-6,1e-12,1e-6,1e-12]
+#        ans = np.empty((6,4))
+#        k = 0
+#        for i in 0,1,2,5,6,7:
+#            for j in 0,1,2,3:
+#                addit = (epsil[k]*np.eye(4)[:,j]).reshape(4,1)
+#                state2 = (state+addit).reshape(4,1)
+#                ans[k,j] = ( y(state2,mu,t,pings)[k,0] - y(state,mu,t,pings)[k,0] ) / epsil[k]
+#            k += 1
+#        return ans
     
 
 def y(state,mu,t,pings):
@@ -90,15 +90,16 @@ def measure(state,mu,t):
         rho = np.sqrt((x_c-x_st)**2+(y_c-y_st)**2)
         rho_d = ((x_c-x_st)*(xd_c-xd_st) + (y_c-y_st)*(yd_c-yd_st))/rho
         phi = np.arctan2((y_c-y_st),(x_c-x_st))
-        if -np.pi/2 < phi-th < np.pi/2:
+        meas = phi - th
+        if meas > np.pi:
+            meas = 2*np.pi-meas
+        elif meas < -np.pi:
+            meas = 2*np.pi+meas
+        if -np.pi/2 < meas < np.pi/2:
             y.append(np.array([[rho,rho_d,phi,i]]).T)
     return np.array(y).reshape(int(np.size(y)),1)
 
-def gen_meas(x0,end,step,mu,dirt,R):
-    x_clean = sp.integrate.odeint(eom,x0,np.arange(0,end+step,step),args=(mu,dirt,step))
-    cov = R
-    noise = np.random.multivariate_normal([0,0,0],cov,size=20000).reshape(20000,3).T
-    noise = np.append(noise,np.zeros((1,20000)),axis=0)
+def gen_meas(x0,end,step,mu,x_clean,R):
     y_clean = []
     y_dirty = []
     for t in np.arange(0,end+step,step):
@@ -107,15 +108,18 @@ def gen_meas(x0,end,step,mu,dirt,R):
         clean = measure(state,mu,t)
         clean = clean.reshape(len(clean),1)
         y_clean.append(clean)
-        if len(clean) == 4:
-            y_dirty.append(clean+noise[:,k].reshape(4,1))
-        elif len(clean) == 8:
-            second = np.random.multivariate_normal([0,0,0],cov,size=(1)).reshape(1,3).T
-            second = np.append(second,[[0]],axis=0).reshape(4,1)
-            y_dirty.append(clean+np.append(noise[:,k].reshape(4,1),second,axis=0))
-        elif len(clean) == 0:
+        if len(clean) == 0:
             y_dirty.append(np.array([]))
-        else: print('Hold Up')
+        else:
+            addit = np.random.multivariate_normal([0,0,0],R,size=int(len(clean)/4))
+            noise = []
+            if addit.size:
+                addit = addit.reshape(1,3*int(len(clean)/4)).T
+                for item in np.split(addit,np.size(addit)/3):
+                    noise.append(np.append(item,[[0]]).reshape(4,1))
+                noise = np.array(noise)
+                noise = noise.reshape(np.size(noise),1)
+                y_dirty.append(clean+noise)
     return y_dirty
 
 #state=np.array([7000,0,0,7.5])
