@@ -19,7 +19,7 @@ dt = 10 #s
 
 data = loadmat('orbitdeterm_finalproj_KFdata.mat')
 Qtrue = data['Qtrue']
-Q = 1.*data['Qtrue']
+Q = data['Qtrue']
 R = data['Rtrue']
 
 #Initial Conditions
@@ -34,8 +34,8 @@ gamma = L.gengamma()
 #initialize x0 and P0
 #x_init = np.array([ro[0],vo[0],ro[1],vo[1]]).reshape((4,1))
 dx_init = np.zeros(4).reshape((4,1))
-#P_init = np.diag([1.,.03,2.5,.01])
-P_init = 10*np.eye(4)
+#dx_init = np.array([.01,.1,.01,.1])
+P_init = .005*np.diag([100,1,100,1])
 
 #plot visible stations
 '''fig2,ax2 = plt.subplots()
@@ -47,10 +47,10 @@ for i in range(len(IDs_vis)):
         ax2.scatter(time[i],IDs_vis[i][1])
 ax2.set_title('Station IDs Visible Over Time')'''
 
-num_MC = 10  #number of Monte Carlo runs
+num_MC = 1  #number of Monte Carlo runs
 NEES_all = []
 NIS_all = []
-
+#start with 0 perturbation in ground truth, take out process noise
 for k in range(num_MC):
     #find nominal solution
     TOF=1500
@@ -69,6 +69,7 @@ for k in range(num_MC):
     
     for i in range(len(time)):
         #initialization
+        print('x actual',x_star[i,:])
         if i==0:
             dxp = dx_init
             Pp = P_init
@@ -112,7 +113,7 @@ for k in range(num_MC):
         #NIS/NEES calculation
         eyk = dy #diff b/w noisy measurement and H@dxm + nominal measurement
         exk = xest - x_star[i,:].reshape((x_star[i,:].size,1))
-        ys_est.append(H@dxm + y_nom_nonoise[i].flatten().reshape((y_nom_nonoise[i].size,1)))
+        ys_est.append([time[i],H@dxm + y_nom_nonoise[i].flatten().reshape((y_nom_nonoise[i].size,1))])
         if dy.size==3:
             y_error.append([time[i],dy.reshape(dy.size)])
         elif dy.size==6:
@@ -129,6 +130,9 @@ for k in range(num_MC):
 #        nees = dxp.reshape(1,4) @ np.linalg.inv(Pm) @ dxp.reshape(4,1)
         nees = exk.T @ np.linalg.inv(Pm) @ exk
         NEES.append([time[i],nees[0][0]])
+#        print('xest:',xest)
+#        print('xest -xnom',xest.T-x_star[i,:])
+
 #    y_error = np.array(y_error)
     sigma=np.array(sigma)
     x_error=np.array(x_error)
@@ -218,6 +222,14 @@ ax5[2].scatter(ts,[item[1][2] for item in y_error])
 ax5[2].set_xlabel('time (s)')
 ax5[2].set_ylabel('phi (rad.)')
 
+#y estimate plot
+fig7,ax7=plt.subplots(3,1)
+plt.suptitle('Y estimate')
+ts = [item[0] for item in ys_est]
+ax7[0].scatter(ts,[item[1][0][0] for item in ys_est])
+ax7[1].scatter(ts,[item[1][1][0] for item in ys_est])
+ax7[2].scatter(ts,[item[1][2][0] for item in ys_est])
+
 #NIS/NEES plot
 fig3,ax3=plt.subplots(2,1)
 ax3[0].scatter(time[27:],NIS_avg[27:])
@@ -226,7 +238,8 @@ ax3[0].plot([time[0],time[-1]],[r2_nis,r2_nis],label='r2',color='green')
 ax3[0].set_ylabel('NIS')
 ax3[0].set_xlabel('Time (s)')
 ax3[0].legend(loc='best')
-ax3[1].scatter(time[10:],NEES_avg[10:])
+#ax3[1].scatter(time[10:],NEES_avg[10:])
+ax3[1].scatter(time,NEES_avg)
 ax3[1].plot([time[0],time[-1]],[r1_nees,r1_nees],label='r1',color='red')
 ax3[1].plot([time[0],time[-1]],[r2_nees,r2_nees],label='r2',color='green')
 ax3[1].legend(loc='best')
