@@ -99,6 +99,7 @@ def gen_meas(x0,end,step,mu,x_clean,R):
                 new_y = clean+noise
                 y_dirty.append(new_y)
     return y_dirty
+    
 
 #state=np.array([7000,0,0,7.5])
 #mu = 3.986004415e5

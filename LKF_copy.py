@@ -22,24 +22,26 @@ y_data = y_data
 #Constants
 mu = 3.986004415e5
 
+pert = np.array([0.1,0.001,0.1,0.001])
+
 NEES = []
 NIS = []
 NEESbar = []
 NISbar = []
-sampSize = 50
+sampSize = 10
 for runs in range(sampSize): # -------------------------------------------------------------------
     #Initial Conditions and Solver Arguments
-    Qtrue = .01*Qtrue
+    Qtrue = 1*Qtrue
+    Rtrue = 1*Rtrue
     dist = 6678
     x0 = np.array([dist,0,0,dist*np.sqrt(mu/dist**3)])
-    tof = 8000
+    tof = 14000
     step = 10
     time_range = np.arange(0,tof+step,step)
     gamma = np.array([[0, 0],[1, 0],[0, 0],[0, 1]])
     O = step*gamma
     dirt = np.random.multivariate_normal([0,0],Qtrue,size=int(tof/step)+1000)
     not_dirt = np.zeros((len(dirt),2))
-    pert = np.random.multivariate_normal([0,0,0,0],10*np.diag([0.01,0.00001,0.01,0.00001]))
     
     #Calculate the truth value and nominal x_star ------------------------------------------------
     x_star = sp.integrate.odeint(eom,x0,time_range,args=(mu,not_dirt,step))
@@ -62,6 +64,8 @@ for runs in range(sampSize): # -------------------------------------------------
     K_ekf = []
     ping_list = []
     y_save = []
+    y1 = []
+    y2 = []
     for t in np.arange(0,tof+step,step):
         k = int(t/step)
         if t==0:
@@ -72,7 +76,8 @@ for runs in range(sampSize): # -------------------------------------------------
 #            Q = np.zeros(Q.shape)
         else:
             #Linearize A
-            F = np.eye(4) + step*A(x_star[k-1],mu)
+            A_mat = A(x_star[k-1],mu)
+            F = np.eye(4) + step*A_mat + 0.5*step**2 * A_mat @ A_mat
             
             #Update Step
             P_m = 1*(F @ P_p @ F.T + O @ Q @ O.T)
@@ -100,8 +105,11 @@ for runs in range(sampSize): # -------------------------------------------------
                 for item in np.split(y_val,len(y_val)/5):
                     y_ekf.append(item)
                     y_m.append(item[:-2])
+                    y1.append(item)
                 y_m = np.array(y_m)
                 y_m = y_m.reshape(np.size(y_m),1)
+                for i in range(int(len(H)/3)):
+                    y2.append(np.append(H[3*i:3*i+3,:]@dx_m.reshape(4,1),np.zeros((2,1))))
                 dy = meas - y_m
                 for item in np.split(dy,len(dy)/3):
                     e_ekf.append(item)
@@ -127,20 +135,23 @@ for runs in range(sampSize): # -------------------------------------------------
                 eps_x_val = e_x.T @ LA.inv(P_p) @ e_x
                 eps_x.append(eps_x_val)
                 eps_y_val = e_y.T @ LA.inv(S_k) @ e_y
-#                if eps_x_val > 30:
-#                    print('It happened', t, eps_x_val, runs)
-#                    print(e_x.T)
-#                    print(e_x.reshape(4)/np.sqrt(np.diag(P_p)))
-#                    print(x_real[k])
-#                    print(x_star[k].reshape(1,4)+dx_p.reshape(1,4))
-#                    print(x_star[k])
-#                    print(dx_p.T)
-#                    print(np.sqrt(np.diag(P_p)))
-#                    sys.exit()
+                if eps_x_val > 30:
+                    print('It happened', t, eps_x_val, runs)
+                    print(e_x.T)
+                    print(e_x.reshape(4)/np.sqrt(np.diag(P_p)))
+                    print(x_real[k])
+                    print(x_star[k].reshape(1,4)+dx_p.reshape(1,4))
+                    print(x_star[k])
+                    print(dx_p.T)
+                    print(np.sqrt(np.diag(P_p)))
+                    sys.exit()
                 eps_y.append(eps_y_val)
                 
         P_ekf.append(P_p)
         x_ekf.append(dx_p.reshape(4,1)+x_star[k,:].reshape(4,1))
+    
+    for i in range(len(y1)):
+        y_lin.append(y1[i].reshape(5,1) + y2[i].reshape(5,1))
             
     x_ekf = np.array(x_ekf).reshape(len(x_ekf),4).T
     y_ekf = np.array(y_ekf)
@@ -165,7 +176,7 @@ r1_NIS = chi2.ppf(0.01,3*sampSize)/sampSize
 r2_NIS = chi2.ppf(0.99,3*sampSize)/sampSize
     
 #Plotting ----------------------------------------------------------------------------------------
-only_plot = 4,5,6,1,2,
+only_plot = 3,7,6,
 #Spatial
 if 1 in only_plot:
     fig1,ax1 = plt.subplots(1,1)
@@ -229,4 +240,17 @@ if 6 in only_plot:
     ax6[1].plot(r2_NIS*np.ones(len(NIS_bar)))
     ax6[1].set_title('NIS')
     ax6[1].set_ylabel('Chi Squared Statistic')
+    plt.show()
+    
+#Approximate Y Measurements vs Time
+if 7 in only_plot:
+    fig7, ax7 = plt.subplots(2,2)
+    ylabels = ['Rho','Rho_D','Phi','Station ID']
+    for i in 0,1:
+        for j in 0,1:
+            k=2*i+j
+            ax7[i,j].plot(y_lin[:,4],y_lin[:,k], '.')
+            ax7[i,j].set_ylabel(ylabels[k])
+            ax7[i,j].set_xlabel('Time')
+    plt.suptitle('Linearized Approximate Y Values vs Time')
     plt.show()

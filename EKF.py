@@ -5,12 +5,13 @@ import scipy.linalg as LA
 from matplotlib import pyplot as plt
 from funcs import eom,A,C,y,gen_meas
 from scipy.stats import chi2
+import sys
 
 #Load instructor-provided values
 locals().update(loadmat('orbitdeterm_finalproj_KFdata'))
 #Qtrue = np.diag([1e-7,1e-7])
 y_data = []
-for a in ydata[0][1:]:
+for a in ydata[0][:]:
     if np.size(a) == 8:
         a = np.append(a[:,0],a[:,1],axis=0).reshape(8,1)
     y_data.append(a)
@@ -19,24 +20,25 @@ y_data = y_data
 #Constants
 mu = 3.986004415e5
 
+pert = np.array([-4.9766,0.1,18.143,-0.02])
+
 NEES = []
 NIS = []
 NEESbar = []
 NISbar = []
-sampSize = 40
+sampSize = 5
 for runs in range(sampSize): # -------------------------------------------------------------------
     #Initial Conditions and Solver Arguments
     dist = 6678
     x0 = np.array([dist,0,0,dist*np.sqrt(mu/dist**3)])
-    tof = 10000
+    tof = 14000
     step = 10
     time_range = np.arange(0,tof+step,step)
     dirt = np.random.multivariate_normal([0,0],Qtrue,size=int(tof/step)+1000)
     not_dirt = np.zeros((len(dirt),2))
-    pert = np.random.multivariate_normal([0,0,0,0],1*np.diag([0.1,0.0001,0.1,0.001]))
     
     #Calculate the truth value -------------------------------------------------------------------
-    x_star = sp.integrate.odeint(eom,x0,time_range,args=(mu,dirt,step))
+    x_star = sp.integrate.odeint(eom,x0,time_range,args=(mu,not_dirt,step))
     
     #Measurements --------------------------------------------------------------------------------
     Rtrue = 1*np.diag([0.1,1,0.1])
@@ -115,9 +117,18 @@ for runs in range(sampSize): # -------------------------------------------------
                 x_hat_p = x_hat_m.reshape(4,1) + K @ e
                 e_x = x_star[k].reshape(4,1) - x_hat_p.reshape(4,1)
                 P_hat_p = (np.eye(4) - K @ H ) @ P_hat_m
-                eps_x.append(e_x.T @ LA.inv(P_hat_p) @ e_x)
-                eps_y.append(e.T @ LA.inv(S_k) @ e)
-                
+                eps_x_val = e_x.T @ LA.inv(P_hat_p) @ e_x
+                eps_y_val = e.T @ LA.inv(S_k) @ e
+                eps_x.append(eps_x_val)
+                eps_y.append(eps_y_val)
+#                if eps_x_val > 30:
+#                    print('It happened', t, eps_x_val, runs)
+#                    print(e_x.T)
+#                    print(e_x.reshape(4)/np.sqrt(np.diag(P_hat_p)))
+#                    print(x_star[k])
+#                    print(x_hat_p.reshape(1,4))
+#                    print(np.sqrt(np.diag(P_hat_p)))
+#                    sys.exit()
             P_ekf.append(P_hat_p)
         x_ekf.append(x_hat_p.reshape(4,1))
             
@@ -144,13 +155,14 @@ r1_NIS = chi2.ppf(0.01,3*sampSize)/sampSize
 r2_NIS = chi2.ppf(0.99,3*sampSize)/sampSize
     
 #Plotting ----------------------------------------------------------------------------------------
-only_plot = 6,
+only_plot = range(9)
 #Spatial
 if 1 in only_plot:
     fig1,ax1 = plt.subplots(1,1)
     ax1.plot(x_star[:,0],x_star[:,2],label='True')
     ax1.plot(x_ekf[0,:],x_ekf[2,:],label='Kalman')
     ax1.legend()
+    plt.suptitle('EKF Spatial Plot')
     plt.show()
 
 #Truth Value vs. Time
@@ -162,10 +174,11 @@ if 2 in only_plot:
             ax2[i,j].plot(time_range,x_star[:,k], label='True')
             ax2[i,j].plot(time_range,x_ekf[k,:], label='Kalman')
             ax2[i,j].legend()
+    plt.suptitle('EKF States and Actual States vs. Time')
     plt.show()
     
 #Y Measurements vs Time
-if 3 in only_plot:
+if 93 in only_plot:
     fig3, ax3 = plt.subplots(2,2)
     ylabels = ['Rho','Rho_D','Phi','Station ID']
     for i in 0,1:
@@ -184,6 +197,9 @@ if 4 in only_plot:
         for j in 0,1:
             k=2*i+j
             ax4[i,j].plot(time_range,x_ekf[k,:]-x_star[:,k])
+            ax4[i,j].plot(time_range[1:],2*np.sqrt(P_ekf[:,k,k]))
+            ax4[i,j].plot(time_range[1:],-2*np.sqrt(P_ekf[:,k,k]))
+    plt.suptitle('EKF State Errors vs Time')
     plt.show()
     
 #Covariance vs Time
@@ -193,6 +209,7 @@ if 5 in only_plot:
         for j in 0,1,2,3:
             k = 4*i+j
             ax5[i,j].plot(time_range[1:],P_ekf[:,i,j])
+    plt.suptitle('EKF Co-Variance Elements vs Time')
     plt.show()
             
 #NEES,NIS Test
@@ -208,10 +225,11 @@ if 6 in only_plot:
     ax6[1].plot(r2_NIS*np.ones(len(NIS_bar)))
     ax6[1].set_title('NIS')
     ax6[1].set_ylabel('Chi Squared Statistic')
+    plt.suptitle('EKF Chi Squared Test')
     plt.show()
     
 #Approximate Y Measurements vs Time
-if 7 in only_plot:
+if 97 in only_plot:
     fig7, ax7 = plt.subplots(2,2)
     ylabels = ['Rho','Rho_D','Phi','Station ID']
     for i in 0,1:
