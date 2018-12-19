@@ -44,29 +44,6 @@ def C(state,mu,t,pings):
     for i in pings:
         C.append(Ci(state,station(i,t),mu))
     return np.array(C).reshape(int(np.size(C)/4),4)
-
-#def H_mat(state,mu,t,pings):
-#    y_val = y(state,mu,t,pings)
-#    if len(y_val) == 5:
-#        epsil = [1e-6,1e-12,1e-6,1e-12]
-#        ans = np.empty((3,4))
-#        for i in np.arange(0,3):
-#            for j in 0,1,2,3:
-#                addit = (epsil[i]*np.eye(4)[:,j]).reshape(4,1)
-#                state2 = (state+addit).reshape(4,1)
-#                ans[i,j] = ( y(state2,mu,t,pings)[i,0] - y(state,mu,t,pings)[i,0] ) / epsil[i]
-#        return ans
-#    elif len(y_val) == 10:
-#        epsil = [1e-6,1e-12,1e-6,1e-12,1e-6,1e-12,1e-6,1e-12]
-#        ans = np.empty((6,4))
-#        k = 0
-#        for i in 0,1,2,5,6,7:
-#            for j in 0,1,2,3:
-#                addit = (epsil[k]*np.eye(4)[:,j]).reshape(4,1)
-#                state2 = (state+addit).reshape(4,1)
-#                ans[k,j] = ( y(state2,mu,t,pings)[k,0] - y(state,mu,t,pings)[k,0] ) / epsil[k]
-#            k += 1
-#        return ans
     
 
 def y(state,mu,t,pings):
@@ -119,7 +96,8 @@ def gen_meas(x0,end,step,mu,x_clean,R):
                     noise.append(np.append(item,[[0]]).reshape(4,1))
                 noise = np.array(noise)
                 noise = noise.reshape(np.size(noise),1)
-                y_dirty.append(clean+noise)
+                new_y = clean+noise
+                y_dirty.append(new_y)
     return y_dirty
 
 #state=np.array([7000,0,0,7.5])
